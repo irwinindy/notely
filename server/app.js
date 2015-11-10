@@ -36,6 +36,5 @@ app.post('/notes', function(req, res) {
 
 app.listen(3000, function() {
   console.log(process.env.DB_URI);
-
   console.log('Listening on http://localhost:3000');
 });
