@@ -1,6 +1,7 @@
 (function() {
   angular.module('notely.notes', [
-    'ui.router'
+    'ui.router',
+    'textAngular'
   ])
   .config(notesConfig);
 
@@ -11,7 +12,7 @@
       .state('notes', {
         url: '/notes',
         resolve: {
-          notesLoaded: ['NotesService',function(NotesService) {
+          notesLoaded: ['NotesService', function(NotesService) {
             return NotesService.fetch();
           }]
         },
@@ -37,7 +38,23 @@
     $scope.note = NotesService.findById($state.params.noteId);
 
     $scope.save = function() {
-      NotesService.save($scope.note);
+      // Decide whether to call create or update...
+      if ($scope.note._id) {
+        NotesService.update($scope.note).then(function(response) {
+          $scope.note = angular.copy(response.data.note);
+        });
+      }
+      else {
+        NotesService.create($scope.note).then(function(response) {
+          $state.go('notes.form', { noteId: response.data.note._id });
+        });
+      }
+    };
+
+    $scope.delete = function() {
+      NotesService.delete($scope.note).then(function() {
+        $state.go('notes.form', { noteId: undefined });
+      });
     };
   }
 })();
