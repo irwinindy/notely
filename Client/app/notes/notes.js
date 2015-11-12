@@ -42,6 +42,7 @@
       if ($scope.note._id) {
         NotesService.update($scope.note).then(function(response) {
           $scope.note = angular.copy(response.data.note);
+
         });
       }
       else {
@@ -56,5 +57,18 @@
         $state.go('notes.form', { noteId: undefined });
       });
     };
+
+
+    $scope.buttonText = function() {
+        console.log('Hello');
+        if ($scope.note._id) {
+          return 'Update';
+        }
+        else {
+          return 'Add';
+        }
+    };
+
+
   }
 })();
