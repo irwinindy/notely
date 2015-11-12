@@ -11,11 +11,13 @@
   "author": "Tim Iriwn",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^2.3.0",
     "body": "^5.1.0",
     "body-parser": "^1.14.1",
     "dotenv": "^1.2.0",
     "express": "^4.13.3",
     "html-to-text": "^1.4.0",
+    "jsonwebtoken": "^5.4.1",
     "mongoose": "^4.2.5",
     "sanitize-html": "^1.11.1"
   },
