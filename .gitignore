@@ -7,4 +7,5 @@ tmp
 Thumbs.db
 .idea
 .env
-.npm-debug.log
+npm-debug.log
+bundle.js
