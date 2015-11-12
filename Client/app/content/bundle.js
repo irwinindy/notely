@@ -14,6 +14,38 @@
 })();
 'use strict';
 
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+angular.module('notely').directive('signUp', ['UsersService', function (UsersService) {
+  var SignUpController = (function () {
+    function SignUpController() {
+      _classCallCheck(this, SignUpController);
+
+      this.user = {};
+    }
+
+    _createClass(SignUpController, [{
+      key: 'submit',
+      value: function submit() {
+        UsersService.create(this.user);
+      }
+    }]);
+
+    return SignUpController;
+  })();
+
+  return {
+    scope: {},
+    controller: SignUpController,
+    controllerAs: 'ctrl',
+    bindToController: true,
+    templateUrl: '/components/sign-up.html'
+  };
+}]);
+'use strict';
+
 (function () {
   angular.module('notely.notes', ['ui.router', 'textAngular']).config(notesConfig);
 
@@ -73,6 +105,112 @@
     };
   }
 })();
+'use strict';
+
+(function () {
+  angular.module('notely').config(usersConfig);
+
+  usersConfig.$inject = ['$stateProvider'];
+  function usersConfig($stateProvider) {
+    $stateProvider.state('sign-up', {
+      url: '/sign-up',
+      template: '<sign-up></sign-up>'
+    });
+  };
+})();
+'use strict';
+
+angular.module('notely').factory('AuthInterceptor', ['AuthToken', 'API_BASE', function (AuthToken, API_BASE) {
+  return {
+    request: function request(config) {
+      var token = AuthToken.get();
+      if (token && config.url.indexOf(API_BASE) > -1) {
+        config.headers['Authorization'] = token;
+      }
+      return config;
+    }
+  };
+}]);
+
+angular.module('notely').config(['$httpProvider', function ($httpProvider) {
+  return $httpProvider.interceptors.push('AuthInterceptor');
+}]);
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+angular.module('notely').service('AuthToken', ['$window', function ($window) {
+  var AuthToken = (function () {
+    function AuthToken() {
+      _classCallCheck(this, AuthToken);
+
+      this.authToken = $window.localStorage.getItem('authToken');
+    }
+
+    _createClass(AuthToken, [{
+      key: 'set',
+      value: function set(token) {
+        this.authToken = token;
+        $window.localStorage.setItem('authToken', this.authToken);
+      }
+    }, {
+      key: 'get',
+      value: function get() {
+        return this.authToken;
+      }
+    }, {
+      key: 'clear',
+      value: function clear() {
+        this.authToken = undefined;
+        $window.localStorage.removeItem('authToken');
+      }
+    }]);
+
+    return AuthToken;
+  })();
+
+  return new AuthToken();
+}]);
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+angular.module('notely').service('CurrentUser', ['$window', function ($window) {
+  var CurrentUser = (function () {
+    function CurrentUser() {
+      _classCallCheck(this, CurrentUser);
+
+      this.currentUser = JSON.parse($window.localStorage.getItem('currentUser'));
+    }
+
+    _createClass(CurrentUser, [{
+      key: 'set',
+      value: function set(user) {
+        this.currentUser = user;
+        $window.localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+      }
+    }, {
+      key: 'get',
+      value: function get() {
+        return this.currentUser || {};
+      }
+    }, {
+      key: 'clear',
+      value: function clear() {
+        this.currentUser = undefined;
+        $window.localStorage.removeItem('currentUser');
+      }
+    }]);
+
+    return CurrentUser;
+  })();
+
+  return new CurrentUser();
+}]);
 'use strict';
 
 angular.module('notely').service('NotesService', NotesService);
@@ -165,7 +303,7 @@ var _createClass = (function () { function defineProperties(target, props) { for
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-angular.module('notely').service('UsersService', ['$http', 'API_BASE', function ($http, API_BASE) {
+angular.module('notely').service('UsersService', ['$http', 'API_BASE', 'AuthToken', 'CurrentUser', function ($http, API_BASE, AuthToken, CurrentUser) {
   var UsersService = (function () {
     function UsersService() {
       _classCallCheck(this, UsersService);
@@ -178,7 +316,8 @@ angular.module('notely').service('UsersService', ['$http', 'API_BASE', function 
           user: user
         });
         userPromise.then(function (response) {
-          console.log(response.data.user);
+          AuthToken.set(response.data.auth_token);
+          CurrentUser.set(response.data.user);
         });
         return userPromise;
       }
@@ -189,49 +328,4 @@ angular.module('notely').service('UsersService', ['$http', 'API_BASE', function 
 
   return new UsersService();
 }]);
-'use strict';
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-angular.module('notely').directive('signUp', ['UsersService', function (UsersService) {
-  var SignUpController = (function () {
-    function SignUpController() {
-      _classCallCheck(this, SignUpController);
-
-      this.user = {};
-    }
-
-    _createClass(SignUpController, [{
-      key: 'submit',
-      value: function submit() {
-        UsersService.create(this.user);
-      }
-    }]);
-
-    return SignUpController;
-  })();
-
-  return {
-    scope: {},
-    controller: SignUpController,
-    controllerAs: 'ctrl',
-    bindToController: true,
-    templateUrl: '/components/sign-up.html'
-  };
-}]);
-'use strict';
-
-(function () {
-  angular.module('notely').config(usersConfig);
-
-  usersConfig.$inject = ['$stateProvider'];
-  function usersConfig($stateProvider) {
-    $stateProvider.state('sign-up', {
-      url: '/sign-up',
-      template: '<sign-up></sign-up>'
-    });
-  };
-})();
 //# sourceMappingURL=bundle.js.map
