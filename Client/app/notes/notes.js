@@ -60,7 +60,6 @@
 
 
     $scope.buttonText = function() {
-        console.log('Hello');
         if ($scope.note._id) {
           return 'Update';
         }
