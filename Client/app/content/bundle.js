@@ -88,9 +88,10 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 angular.module('notely').directive('userLinks', function () {
   var UserLinksController = (function () {
-    function UserLinksController(CurrentUser, AuthToken) {
+    function UserLinksController($state, CurrentUser, AuthToken) {
       _classCallCheck(this, UserLinksController);
 
+      this.$state = $state;
       this.CurrentUser = CurrentUser;
       this.AuthToken = AuthToken;
     }
@@ -110,13 +111,14 @@ angular.module('notely').directive('userLinks', function () {
       value: function logout() {
         this.CurrentUser.clear();
         this.AuthToken.clear();
+        this.$state.go('sign-in');
       }
     }]);
 
     return UserLinksController;
   })();
 
-  UserLinksController.$inject = ['CurrentUser', 'AuthToken'];
+  UserLinksController.$inject = ['$state', 'CurrentUser', 'AuthToken'];
 
   return {
     scope: {},
@@ -126,6 +128,82 @@ angular.module('notely').directive('userLinks', function () {
     template: '\n      <div class="user-links">\n        <div ng-show="ctrl.signedIn()">\n          Signed in as {{ ctrl.user().name }}\n          |\n          <a href="#" ng-click="ctrl.logout()">Logout</a>\n        </div>\n      </div>\n    '
   };
 });
+'use strict';
+
+(function () {
+  angular.module('notely.notes', ['ui.router', 'textAngular']).config(notesConfig);
+
+  notesConfig['$inject'] = ['$stateProvider'];
+  function notesConfig($stateProvider) {
+    $stateProvider.state('notes', {
+      url: '/notes',
+      resolve: {
+        notesLoaded: ['$state', '$q', '$timeout', 'NotesService', 'CurrentUser', function ($state, $q, $timeout, NotesService, CurrentUser) {
+          var deferred = $q.defer();
+          $timeout(function () {
+            if (CurrentUser.isSignedIn()) {
+              NotesService.fetch().then(function () {
+                deferred.resolve();
+              }, function () {
+                deferred.reject();
+                $state.go('sign-in');
+              });
+            } else {
+              deferred.reject();
+              $state.go('sign-in');
+            }
+          });
+          return NotesService.fetch();
+          return deferred.promise;
+        }]
+      },
+      templateUrl: '/notes/notes.html',
+      controller: NotesController
+    }).state('notes.form', {
+      url: '/:noteId',
+      templateUrl: '/notes/notes-form.html',
+      controller: NotesFormController
+    });
+  }
+
+  NotesController.$inject = ['$state', '$scope', 'NotesService'];
+  function NotesController($state, $scope, NotesService) {
+    $scope.note = {};
+    $scope.notes = NotesService.get();
+  }
+
+  NotesFormController.$inject = ['$scope', '$state', 'NotesService'];
+  function NotesFormController($scope, $state, NotesService) {
+    $scope.note = NotesService.findById($state.params.noteId);
+
+    $scope.save = function () {
+      // Decide whether to call create or update...
+      if ($scope.note._id) {
+        NotesService.update($scope.note).then(function (response) {
+          $scope.note = angular.copy(response.data.note);
+        });
+      } else {
+        NotesService.create($scope.note).then(function (response) {
+          $state.go('notes.form', { noteId: response.data.note._id });
+        });
+      }
+    };
+
+    $scope['delete'] = function () {
+      NotesService['delete']($scope.note).then(function () {
+        $state.go('notes.form', { noteId: undefined });
+      });
+    };
+
+    $scope.buttonText = function () {
+      if ($scope.note._id) {
+        return 'Update';
+      } else {
+        return 'Add';
+      }
+    };
+  }
+})();
 'use strict';
 
 angular.module('notely').factory('AuthInterceptor', ['AuthToken', 'API_BASE', function (AuthToken, API_BASE) {
@@ -211,6 +289,11 @@ angular.module('notely').service('CurrentUser', ['$window', function ($window) {
       value: function clear() {
         this.currentUser = undefined;
         $window.localStorage.removeItem('currentUser');
+      }
+    }, {
+      key: 'isSignedIn',
+      value: function isSignedIn() {
+        return !!this.get()._id;
       }
     }]);
 
@@ -363,66 +446,5 @@ angular.module('notely').service('UsersService', ['$http', 'API_BASE', 'AuthToke
       template: '<sign-in></sign-in>'
     });
   };
-})();
-'use strict';
-
-(function () {
-  angular.module('notely.notes', ['ui.router', 'textAngular']).config(notesConfig);
-
-  notesConfig['$inject'] = ['$stateProvider'];
-  function notesConfig($stateProvider) {
-    $stateProvider.state('notes', {
-      url: '/notes',
-      resolve: {
-        notesLoaded: ['NotesService', function (NotesService) {
-          return NotesService.fetch();
-        }]
-      },
-      templateUrl: '/notes/notes.html',
-      controller: NotesController
-    }).state('notes.form', {
-      url: '/:noteId',
-      templateUrl: '/notes/notes-form.html',
-      controller: NotesFormController
-    });
-  }
-
-  NotesController.$inject = ['$state', '$scope', 'NotesService'];
-  function NotesController($state, $scope, NotesService) {
-    $scope.note = {};
-    $scope.notes = NotesService.get();
-  }
-
-  NotesFormController.$inject = ['$scope', '$state', 'NotesService'];
-  function NotesFormController($scope, $state, NotesService) {
-    $scope.note = NotesService.findById($state.params.noteId);
-
-    $scope.save = function () {
-      // Decide whether to call create or update...
-      if ($scope.note._id) {
-        NotesService.update($scope.note).then(function (response) {
-          $scope.note = angular.copy(response.data.note);
-        });
-      } else {
-        NotesService.create($scope.note).then(function (response) {
-          $state.go('notes.form', { noteId: response.data.note._id });
-        });
-      }
-    };
-
-    $scope['delete'] = function () {
-      NotesService['delete']($scope.note).then(function () {
-        $state.go('notes.form', { noteId: undefined });
-      });
-    };
-
-    $scope.buttonText = function () {
-      if ($scope.note._id) {
-        return 'Update';
-      } else {
-        return 'Add';
-      }
-    };
-  }
 })();
 //# sourceMappingURL=bundle.js.map
