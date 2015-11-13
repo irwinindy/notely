@@ -1,39 +1,46 @@
 (function() {
+
   angular.module('notely.notes', [
     'ui.router',
-    'textAngular'
+    'textAngular',
+    'flash'
   ])
   .config(notesConfig);
 
   notesConfig['$inject'] = ['$stateProvider'];
   function notesConfig($stateProvider) {
     $stateProvider
+
       .state('notes', {
         url: '/notes',
         resolve: {
-          notesLoaded: ['$state', '$q', '$timeout', 'NotesService', 'CurrentUser',
-          function($state, $q, $timeout, NotesService, CurrentUser) {
-            let deferred = $q.defer();
-            $timeout(function(){
-              if (CurrentUser.isSignedIn()){
-                NotesService.fetch().then(
-                  function(){
-                    deferred.resolve();
-                  },
-                  function(){
-                    deferred.reject();
-                    $state.go('sign-in');
-                  }
-                );
-              }
-              else {
-                deferred.reject();
-                $state.go('sign-in');
-              }
-            });
-            return NotesService.fetch();
-            return deferred.promise;
-          }]
+          notesLoaded: [
+            '$state',
+            '$q',
+            '$timeout',
+            'NotesService',
+            'CurrentUser',
+            function($state, $q, $timeout, NotesService , CurrentUser) {
+              let deferred = $q.defer();
+              $timeout(function() {
+                if (CurrentUser.isSignedIn()) {
+                  NotesService.fetch().then(
+                    function() {
+                      deferred.resolve();
+                    },
+                    function() {
+                      deferred.reject();
+                      $state.go('sign-in');
+                    }
+                  );
+                }
+                else {
+                  deferred.reject();
+                  $state.go('sign-in');
+                }
+              });
+              return deferred.promise;
+            }]
         },
         templateUrl: '/notes/notes.html',
         controller: NotesController
@@ -52,8 +59,8 @@
     $scope.notes = NotesService.get();
   }
 
-  NotesFormController.$inject = ['$scope', '$state', 'NotesService'];
-  function NotesFormController($scope, $state, NotesService) {
+  NotesFormController.$inject = ['$scope', '$state', 'Flash', 'NotesService'];
+  function NotesFormController($scope, $state, Flash, NotesService) {
     $scope.note = NotesService.findById($state.params.noteId);
 
     $scope.save = function() {
@@ -61,7 +68,10 @@
       if ($scope.note._id) {
         NotesService.update($scope.note).then(function(response) {
           $scope.note = angular.copy(response.data.note);
-
+          Flash.create('success', response.data.message);
+        },
+        function(response) {
+          Flash.create('danger', response.data);
         });
       }
       else {
@@ -77,16 +87,11 @@
       });
     };
 
-
     $scope.buttonText = function() {
-        if ($scope.note._id) {
-          return 'Update';
-        }
-        else {
-          return 'Add';
-        }
-    };
-
-
+      if ($scope.note._id) {
+        return 'Save Changes';
+      }
+      return 'Save';
+    }
   }
 })();
